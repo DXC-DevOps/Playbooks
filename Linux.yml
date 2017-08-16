@@ -1,0 +1,137 @@
+- name: AWS Linux MSP 
+  hosts: tag_AnsibleCLI_linux
+  become: True
+  #become_method: su
+  #become_user: root
+  gather_facts: true
+  tasks:
+     - name: Setting Up Systemd for Amazon Linux
+       shell: sudo yum-config-manager --enable epel
+       ignore_errors: yes
+     - name: Setup CloudWatch logs
+       shell: |
+         sudo yum update -y
+         curl https://s3.amazonaws.com//aws-cloudwatch/downloads/latest/awslogs-agent-setup.py -O /tmp
+         curl https://s3.amazonaws.com//aws-cloudwatch/downloads/latest/AgentDependencies.tar.gz -O /tmp
+         tar xvf AgentDependencies.tar.gz -C /tmp/
+         REGIONNAME=`curl -fs http://169.254.169.254/latest/meta-data/placement/availability-zone | sed -e 's/\\([1-9]\\).$/\\1/g'`
+         sudo python ./awslogs-agent-setup.py -n -r $REGIONNAME -c s3://test-log-rarchivelogsbucket-vff02p5x5izl/my-config-file
+         sudo yum install -y awslogs
+         sudo sed -i -e s/us-east-1/$REGIONNAME/g /etc/awslogs/awscli.conf
+         sudo service awslogs start
+       ignore_errors: yes
+     - name: Enable Detailed Monitoring
+       shell: | 
+         REGIONNAME=`curl -fs http://169.254.169.254/latest/meta-data/placement/availability-zone | sed -e 's/\\([1-9]\\).$/\\1/g'`
+         EC2_INSTANCE_ID=`wget -q -O - http://169.254.169.254/latest/meta-data/instance-id`
+         aws ec2 monitor-instances --instance-ids $EC2_INSTANCE_ID --region $REGIONNAME
+     - name: download ssm agent
+       get_url: url="https://amazon-ssm-us-west-2.s3.amazonaws.com/latest/linux_amd64/amazon-ssm-agent.rpm" dest="/tmp/amazon-ssm-agent.rpm" mode=0755
+     - name: sudo install ssm agent
+       yum: name=/tmp/amazon-ssm-agent.rpm state=present
+       ignore_errors: yes
+     - name: Start and Enable ssm agent
+       service: name=amazon-ssm-agent state=started enabled=yes
+       ignore_errors: yes
+     - name: Get instance ID
+       action: ec2_facts
+     - name: CPU Alarm
+       ec2_metric_alarm:
+         state: present
+         region: us-west-2
+         name: "cpu-util{{ec2_id}}"
+         metric: "CPUUtilization"
+         namespace: "AWS/EC2"
+         statistic: Average
+         comparison: ">="
+         threshold: 8.5
+         period: 300
+         evaluation_periods: 3
+         unit: "Percent"
+         description: "This will alarm when instance cpu usage is greater than 85% for 15 minutes "
+         dimensions: { "InstanceId": "{{ec2_id}}"}
+         alarm_actions: ["arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM"]
+     - name: Status Failed
+       ec2_metric_alarm:
+         state: present
+         region: us-west-2
+         name: "status-failed{{ec2_id}}"
+         metric: "StatusCheckFailed"
+         namespace: "AWS/EC2"
+         statistic: Minimum
+         comparison: ">"
+         threshold: 0
+         period: 60
+         evaluation_periods: 3
+         unit: "Percent"
+         description: "This will alarm when instance status check fails"
+         dimensions: { "InstanceId": "{{ec2_id}}" }
+         alarm_actions: ["arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM"]
+         
+     - name: StatusFailedSystem
+       ec2_metric_alarm:
+         state: present
+         region: us-west-2
+         name: "status-failed-system{{ec2_id}}"
+         metric: "StatusCheckFailed_System"
+         namespace: "AWS/EC2"
+         statistic: Minimum
+         comparison: ">"
+         threshold: 0
+         period: 60
+         evaluation_periods: 3
+         unit: "Percent"
+         description: "This will alarm when instance status check fails"
+         dimensions: { "InstanceId": "{{ec2_id}}" }
+         alarm_actions: ["arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM"] 
+     
+     - name: StatusFailedInstance
+       ec2_metric_alarm:
+         state: present
+         region: us-west-2
+         name: "status-failed-instance{{ec2_id}}"
+         metric: "StatusCheckFailed_Instance"
+         namespace: "AWS/EC2"
+         statistic: Minimum
+         comparison: ">"
+         threshold: 0
+         period: 60
+         evaluation_periods: 3
+         unit: "Percent"
+         description: "This will alarm when instance status check fails"
+         dimensions: { "InstanceId": "{{ec2_id}}" }
+         alarm_actions: ["arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM"]
+      
+     - name: MemoryUtilAlarm
+       ec2_metric_alarm:
+         state: present
+         region: us-west-2
+         name: "memory-util{{ec2_id}}"
+         metric: "MemoryUtilization"
+         namespace: "Windows/Default"
+         statistic: Minimum
+         comparison: ">"
+         threshold: 85
+         period: 300
+         evaluation_periods: 2
+         unit: "Percent"
+         description: "Alarm is triggered when the memory is full"
+         dimensions: { "InstanceId": "{{ec2_id}}" }
+         alarm_actions: ["arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM"]
+         
+     - name: DiskUtilAlarm
+       ec2_metric_alarm:
+         state: present
+         region: us-west-2
+         name: "disk-util{{ec2_id}}"
+         metric: "DiskSpaceUtilization"
+         namespace: "Windows/Default"
+         statistic: Minimum
+         comparison: ">"
+         threshold: 85
+         period: 300
+         evaluation_periods: 2
+         unit: "Percent"
+         description: "Alarm is triggered when the memory is full"
+         dimensions: { "InstanceId": "{{ec2_id}}" }
+         alarm_actions: ["arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM"]
