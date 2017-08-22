@@ -1,6 +1,5 @@
 - name: Windows MSP Service Enable
   hosts: tag_AnsibleCLI_windows
-
   tasks:
     - name: Create new directory
       win_file:
