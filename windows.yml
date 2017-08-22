@@ -5,21 +5,25 @@
       win_file:
         path: C:\ansibletemp
         state: directory
+      ignore_errors: yes
 
     - name: Endpoint protection
       win_get_url:
         url: https://github.com/bhagyagunasekar/Ansible/raw/master/WindowsSensor_5121_NGAV_INCLUDED.exe
         dest: c:\ansibletemp\WindowsSensor_5121_NGAV_INCLUDED.exe
+      ignore_errors: yes
 
     - name: Install Crowdstrike
       win_shell: |
         cd c:\ansibletemp
         $installer=.\WindowsSensor_5121_NGAV_INCLUDED.exe /install /quiet /norestart CID="35C43E7262224DFB9AA9F142596987E5-E7"
+      ignore_errors: yes
     
     - name: Download CloudWatch agent
       win_get_url:
         url: https://s3.amazonaws.com/ec2-downloads-windows/EC2Config/EC2Install.zip
         dest: c:\ansibletemp\EC2Install.zip
+      ignore_errors: yes
     
     - name: Install CloudWatch Agent
       win_shell: |
@@ -27,8 +31,25 @@
         $Destination = "C:\ansibletemp"
         Add-Type -assembly "system.io.compression.filesystem"
         [io.compression.zipfile]::ExtractToDirectory($BackUpPath, $destination)
-        cd c:\dwstemp
+        cd c:\ansibletemp
         $ssminstall=.\Ec2Install.exe /quiet /norestart
+      ignore_errors: yes
+
+    - name: Remove existing Cloudwatch.json
+      win_file:
+        path: C:\Program Files\Amazon\SSM\Plugins\awsCloudWatch\AWS.EC2.Windows.CloudWatch.json
+        state: absent
+      ignore_errors: yes
+
+    - name: Enable Windows Syslog
+      win_copy:
+        src: /etc/ansible/Playbooks/AWS.EC2.Windows.CloudWatch.json
+        dest: C:\Program Files\Amazon\SSM\Plugins\awsCloudWatch\AWS.EC2.Windows.CloudWatch.json
+      ignore_errors: yes
+
+    - name: Enable CloudWatch Logs
+      win_shell: |
+        Start-Process powershell -Verb runAs
         $EC2SettingsFile="C:\Program Files\Amazon\Ec2ConfigService\Settings\config.xml"
         $xml = [xml](get-content $EC2SettingsFile)
         $xmlElement = $xml.get_DocumentElement()
@@ -45,14 +66,14 @@
           }
         }
         $xml.Save($EC2SettingsFile)
-        if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) { Start-Process powershell.exe "-N
-oProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs; exit }
-          restart-service AmazonSSMAgent
+        restart-service AmazonSSMAgent
+      ignore_errors: yes
     
     - name: Download aws cli
       win_get_url:
         url: https://github.com/DXC-DevOps/Ansible/raw/CSCSOE/AWSCLI64.msi
         dest: C:\ansibletemp\AWSCLI64.msi
+      ignore_errors: yes
    
     - name: install the msi package
       win_msi:
@@ -75,9 +96,8 @@ oProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs; exit }
         $instanceid = $webclient.Downloadstring('http://169.254.169.254/latest/meta-data/instance-id')
         $regionid = $webclient.Downloadstring('http://169.254.169.254/latest/meta-data/placement/availability-zone')
         $regionid = $regionid.Substring(0,$regionid.Length-1)
-        aws cloudwatch put-metric-alarm --alarm-name CPU-util-windows-$instanceid --alarm-description "Triggered by EC2 instances config/status changes." --metric-name CPUUtilization  --namespace AWS/EC2 
- --dimensions "Name=InstanceId,Value=$instanceid" --statistic Average --comparison-operator GreaterThanOrEqualToThreshold --region $regionid --unit Percent --evaluation-periods 2 --period 300 --threshold 
-85  --actions-enabled --alarm-actions arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM
+        aws cloudwatch put-metric-alarm --alarm-name CPU-util-windows-$instanceid --alarm-description "Triggered by EC2 instances config/status changes." --metric-name CPUUtilization  --namespace AWS/EC2 --dimensions "Name=InstanceId,Value=$instanceid" --statistic Average --comparison-operator GreaterThanOrEqualToThreshold --region $regionid --unit Percent --evaluation-periods 2 --period 300 --threshold 85  --actions-enabled --alarm-actions arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM
+      ignore_errors: yes
     
     - name: CloudWatch Alarm for Status Failed 
       win_shell: |
@@ -85,29 +105,26 @@ oProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs; exit }
         $instanceid = $webclient.Downloadstring('http://169.254.169.254/latest/meta-data/instance-id')
         $regionid = $webclient.Downloadstring('http://169.254.169.254/latest/meta-data/placement/availability-zone')
         $regionid = $regionid.Substring(0,$regionid.Length-1)
-        aws cloudwatch put-metric-alarm --alarm-name status-failed-$instanceid --alarm-description "This will alarm when instance status check fails" --metric-name StatusCheckFailed --namespace AWS/EC2  -
--dimensions "Name=InstanceId,Value=$instanceid" --statistic Minimum --comparison-operator GreaterThanThreshold --region $regionid --unit Percent --evaluation-periods 3 --period 60 --threshold 0 --actions-
-enabled --alarm-actions arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM
-    
+        aws cloudwatch put-metric-alarm --alarm-name status-failed-$instanceid --alarm-description "This will alarm when instance status check fails" --metric-name StatusCheckFailed --namespace AWS/EC2  --dimensions "Name=InstanceId,Value=$instanceid" --statistic Minimum --comparison-operator GreaterThanThreshold --region $regionid --unit Percent --evaluation-periods 3 --period 60 --threshold 0 --actions-enabled --alarm-actions arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM
+      ignore_errors: yes
+
     - name: CloudWatch Alarm for Status FailedSystem
       win_shell: |
         $webclient = new-object net.webclient
         $instanceid = $webclient.Downloadstring('http://169.254.169.254/latest/meta-data/instance-id')
         $regionid = $webclient.Downloadstring('http://169.254.169.254/latest/meta-data/placement/availability-zone')
         $regionid = $regionid.Substring(0,$regionid.Length-1)
-        aws cloudwatch put-metric-alarm --alarm-name status-failed-system-$instanceid --alarm-description "This will alarm when instance status check fails" --metric-name StatusCheckFailed_System --namesp
-ace AWS/EC2 --dimensions "Name=InstanceId,Value=$instanceid" --statistic Minimum --comparison-operator GreaterThanThreshold --region $regionid --unit Percent --evaluation-periods 3 --period 60 --threshold
- 0 --actions-enabled --alarm-actions arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM
-    
+        aws cloudwatch put-metric-alarm --alarm-name status-failed-system-$instanceid --alarm-description "This will alarm when instance status check fails" --metric-name StatusCheckFailed_System --namespace AWS/EC2 --dimensions "Name=InstanceId,Value=$instanceid" --statistic Minimum --comparison-operator GreaterThanThreshold --region $regionid --unit Percent --evaluation-periods 3 --period 60 --threshold 0 --actions-enabled --alarm-actions arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM
+      ignore_errors: yes
+
     - name: CloudWatch Alarm for Status Failed Instance 
       win_shell: |
         $webclient = new-object net.webclient
         $instanceid = $webclient.Downloadstring('http://169.254.169.254/latest/meta-data/instance-id')
         $regionid = $webclient.Downloadstring('http://169.254.169.254/latest/meta-data/placement/availability-zone')
         $regionid = $regionid.Substring(0,$regionid.Length-1)
-        aws cloudwatch put-metric-alarm --alarm-name status-failed-instsance-$instanceid --alarm-description "This will alarm when instance status check fails" --metric-name StatusCheckFailed_Instance --n
-amespace AWS/EC2 --dimensions "Name=InstanceId,Value=$instanceid" --statistic Minimum --comparison-operator GreaterThanThreshold --region $regionid --unit Percent --evaluation-periods 3 --period 60 --thre
-shold 0 --actions-enabled --alarm-actions arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM
+        aws cloudwatch put-metric-alarm --alarm-name status-failed-instsance-$instanceid --alarm-description "This will alarm when instance status check fails" --metric-name StatusCheckFailed_Instance --namespace AWS/EC2 --dimensions "Name=InstanceId,Value=$instanceid" --statistic Minimum --comparison-operator GreaterThanThreshold --region $regionid --unit Percent --evaluation-periods 3 --period 60 --threshold 0 --actions-enabled --alarm-actions arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM
+      ignore_errors: yes
 
     - name: CloudWatch Alarm for Memory Utilization
       win_shell: |
@@ -115,9 +132,8 @@ shold 0 --actions-enabled --alarm-actions arn:aws:sns:us-west-2:641434276274:Log
         $instanceid = $webclient.Downloadstring('http://169.254.169.254/latest/meta-data/instance-id')
         $regionid = $webclient.Downloadstring('http://169.254.169.254/latest/meta-data/placement/availability-zone')
         $regionid = $regionid.Substring(0,$regionid.Length-1)
-        aws cloudwatch put-metric-alarm --alarm-name memory-util-$instanceid --alarm-description "Alarm is triggered when the memory reaches the threshold" --metric-name MemoryUtilization --namespace Wind
-ows/Default --dimensions "Name=InstanceId,Value=$instanceid" --statistic Minimum --comparison-operator GreaterThanThreshold --region $regionid --unit Percent --evaluation-periods 2 --period 300 --threshol
-d 85 --actions-enabled --alarm-actions arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM
+        aws cloudwatch put-metric-alarm --alarm-name memory-util-$instanceid --alarm-description "Alarm is triggered when the memory reaches the threshold" --metric-name MemoryUtilization --namespace Windows/Default --dimensions "Name=InstanceId,Value=$instanceid" --statistic Minimum --comparison-operator GreaterThanThreshold --region $regionid --unit Percent --evaluation-periods 2 --period 300 --threshold 85 --actions-enabled --alarm-actions arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM
+      ignore_errors: yes
 
     - name: CloudWatch Alarm for Disk Utilization
       win_shell: |
@@ -125,14 +141,21 @@ d 85 --actions-enabled --alarm-actions arn:aws:sns:us-west-2:641434276274:Loggin
         $instanceid = $webclient.Downloadstring('http://169.254.169.254/latest/meta-data/instance-id')
         $regionid = $webclient.Downloadstring('http://169.254.169.254/latest/meta-data/placement/availability-zone')
         $regionid = $regionid.Substring(0,$regionid.Length-1)
-        aws cloudwatch put-metric-alarm --alarm-name disk-utili-$instanceid --alarm-description "Alarm is triggered when disk is full" --metric-name DiskSpaceUtilization --namespace Windows/Default --dime
-nsions "Name=InstanceId,Value=$instanceid" --statistic Minimum --comparison-operator GreaterThanThreshold --region $regionid --unit Percent --evaluation-periods 2 --period 300 --threshold 85 --actions-ena
-bled --alarm-actions arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM
-    
+        aws cloudwatch put-metric-alarm --alarm-name disk-utili-$instanceid --alarm-description "Alarm is triggered when disk is full" --metric-name DiskSpaceUtilization --namespace Windows/Default --dimensions "Name=InstanceId,Value=$instanceid" --statistic Minimum --comparison-operator GreaterThanThreshold --region $regionid --unit Percent --evaluation-periods 2 --period 300 --threshold 85 --actions-enabled --alarm-actions arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM
+      ignore_errors: yes
+
     - name: Create Tags for Backup and Retention 
       win_shell: |
         $webclient = new-object net.webclient
         $instanceid = $webclient.Downloadstring('http://169.254.169.254/latest/meta-data/instance-id')
         $regionid = $webclient.Downloadstring('http://169.254.169.254/latest/meta-data/placement/availability-zone')
         $regionid = $regionid.Substring(0,$regionid.Length-1)
-        aws ec2 create-tags --resources $instanceid --region $regionid --tags 'Key=Backup, Value=True', 'Key=RetentionPeriod, Value=7', 'Key=Patch Group, Value=patchlinux'
+        aws ec2 create-tags --resources $instanceid --region $regionid --tags 'Key=Backup, Value=True', 'Key=RetentionPeriod, Value=7', 'Key=Patch Group, Value=patchwin'
+      ignore_errors: yes
+
+    - name: Remove the ansibletemp
+      win_file:
+        path: C:\ansibletemp
+        state: absent
+      ignore_errors: yes
+
