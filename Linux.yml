@@ -8,6 +8,16 @@
      - name: Setting Up Systemd for Amazon Linux
        shell: sudo yum-config-manager --enable epel
        ignore_errors: yes
+     - name: Install AWS CLI
+       shell: |
+         curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+         sudo python get-pip.py
+         sudo pip install awscli
+         export PATH=~/.local/bin:$PATH
+         source ~/.bash_profile
+     - name: pip install boto
+       pip: name=boto
+       ignore_errors: yes
      - name: Setup CloudWatch logs
        shell: |
          sudo yum update -y
@@ -23,7 +33,7 @@
      - name: Enable Detailed Monitoring
        shell: | 
          REGIONNAME=`curl -fs http://169.254.169.254/latest/meta-data/placement/availability-zone | sed -e 's/\\([1-9]\\).$/\\1/g'`
-         EC2_INSTANCE_ID=`wget -q -O - http://169.254.169.254/latest/meta-data/instance-id`
+         EC2_INSTANCE_ID=`curl -fs  http://169.254.169.254/latest/meta-data/instance-id`
          aws ec2 monitor-instances --instance-ids $EC2_INSTANCE_ID --region $REGIONNAME
      - name: download ssm agent
        get_url: url="https://amazon-ssm-us-west-2.s3.amazonaws.com/latest/linux_amd64/amazon-ssm-agent.rpm" dest="/tmp/amazon-ssm-agent.rpm" mode=0755
