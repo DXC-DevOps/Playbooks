@@ -51,6 +51,7 @@
          description: "This will alarm when instance cpu usage is greater than 85% for 15 minutes "
          dimensions: { "InstanceId": "{{ec2_id}}"}
          alarm_actions: ["arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM"]
+         
      - name: Status Failed
        ec2_metric_alarm:
          state: present
