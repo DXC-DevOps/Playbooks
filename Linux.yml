@@ -157,8 +157,9 @@
        ignore_errors: yes
        
      - name: Tags for instances
-       regionid=`curl -fs http://169.254.169.254/latest/meta-data/placement/availability-zone | sed -e 's/\\([1-9]\\).$/\\1/g'`
-       instanceid=`curl -fs  http://169.254.169.254/latest/meta-data/instance-id`
-       aws ec2 create-tags --resources $instanceid --region $regionid --tags 'Key=Backup, Value=True', 'Key=RetentionPeriod, Value=7', 'Key=Patch Group, Value=patchlinux'
-       ignore_error: yes
+       shell: |
+         regionid=`curl -fs http://169.254.169.254/latest/meta-data/placement/availability-zone | sed -e 's/\\([1-9]\\).$/\\1/g'`
+         instanceid=`curl -fs  http://169.254.169.254/latest/meta-data/instance-id`
+         aws ec2 create-tags --resources $instanceid --region $regionid --tags 'Key=Backup, Value=True', 'Key=RetentionPeriod, Value=7', 'Key=Patch Group, Value=patchlinux'
+       ignore_errors: yes
      
