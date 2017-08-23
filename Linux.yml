@@ -15,6 +15,7 @@
          sudo pip install awscli
          export PATH=~/.local/bin:$PATH
          source ~/.bash_profile
+       ignore_errors: yes
      - name: pip install boto
        pip: name=boto
        ignore_errors: yes
@@ -35,8 +36,10 @@
          REGIONNAME=`curl -fs http://169.254.169.254/latest/meta-data/placement/availability-zone | sed -e 's/\\([1-9]\\).$/\\1/g'`
          EC2_INSTANCE_ID=`curl -fs  http://169.254.169.254/latest/meta-data/instance-id`
          aws ec2 monitor-instances --instance-ids $EC2_INSTANCE_ID --region $REGIONNAME
+       ignore_errors: yes
      - name: download ssm agent
        get_url: url="https://amazon-ssm-us-west-2.s3.amazonaws.com/latest/linux_amd64/amazon-ssm-agent.rpm" dest="/tmp/amazon-ssm-agent.rpm" mode=0755
+       ignore_errors: yes
      - name: sudo install ssm agent
        yum: name=/tmp/amazon-ssm-agent.rpm state=present
        ignore_errors: yes
@@ -61,7 +64,8 @@
          description: "This will alarm when instance cpu usage is greater than 85% for 15 minutes "
          dimensions: { "InstanceId": "{{ec2_id}}"}
          alarm_actions: ["arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM"]
-         
+       ignore_errors: yes
+       
      - name: Status Failed
        ec2_metric_alarm:
          state: present
@@ -78,7 +82,8 @@
          description: "This will alarm when instance status check fails"
          dimensions: { "InstanceId": "{{ec2_id}}" }
          alarm_actions: ["arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM"]
-         
+       ignore_errors: yes
+       
      - name: StatusFailedSystem
        ec2_metric_alarm:
          state: present
@@ -95,7 +100,8 @@
          description: "This will alarm when instance status check fails"
          dimensions: { "InstanceId": "{{ec2_id}}" }
          alarm_actions: ["arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM"] 
-     
+       ignore_errors: yes
+       
      - name: StatusFailedInstance
        ec2_metric_alarm:
          state: present
@@ -112,7 +118,8 @@
          description: "This will alarm when instance status check fails"
          dimensions: { "InstanceId": "{{ec2_id}}" }
          alarm_actions: ["arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM"]
-      
+       ignore_errors: yes
+       
      - name: MemoryUtilAlarm
        ec2_metric_alarm:
          state: present
@@ -129,7 +136,8 @@
          description: "Alarm is triggered when the memory is full"
          dimensions: { "InstanceId": "{{ec2_id}}" }
          alarm_actions: ["arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM"]
-         
+       ignore_errors: yes
+       
      - name: DiskUtilAlarm
        ec2_metric_alarm:
          state: present
@@ -146,3 +154,11 @@
          description: "Alarm is triggered when the memory is full"
          dimensions: { "InstanceId": "{{ec2_id}}" }
          alarm_actions: ["arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM"]
+       ignore_errors: yes
+       
+     - name: Tags for instances
+       regionid=`curl -fs http://169.254.169.254/latest/meta-data/placement/availability-zone | sed -e 's/\\([1-9]\\).$/\\1/g'`
+       instanceid=`curl -fs  http://169.254.169.254/latest/meta-data/instance-id`
+       aws ec2 create-tags --resources $instanceid --region $regionid --tags 'Key=Backup, Value=True', 'Key=RetentionPeriod, Value=7', 'Key=Patch Group, Value=patchlinux'
+       ignore_error: yes
+     
