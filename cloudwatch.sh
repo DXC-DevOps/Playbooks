@@ -1,5 +1,6 @@
 #!/usr/bin/expect -f
-spawn python ./awslogs-agent-setup.py --region us-west-2
+regionid=`curl -fs http://169.254.169.254/latest/meta-data/placement/availability-zone | sed -e 's/\\([1-9]\\).$/\\1/g'`
+spawn python ./awslogs-agent-setup.py --region $regionid
 expect "AWS Access Key ID:"
 send "\n"
 expect "AWS Secret Access Key:"
