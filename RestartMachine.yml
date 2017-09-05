@@ -1,0 +1,7 @@
+- name: Windows Powershell Upgrade
+  hosts: tag_AnsibleCLI_windows
+  tasks:
+  - name: restartsystem
+    win_reboot:
+      shutdown_timeout_sec: 360
+      reboot_timeout_sec: 360

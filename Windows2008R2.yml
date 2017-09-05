@@ -1,0 +1,15 @@
+- name: Windows Powershell Upgrade
+  hosts: tag_AnsibleCLI_windows
+  tasks:
+    - name: downloading dotnet framework 4.5
+      win_get_url:
+        url: http://download.microsoft.com/download/b/a/4/ba4a7e71-2906-4b2d-a0e1-80cf16844f5f/dotnetfx45_full_x86_x64.exe
+        dest: C:\Users\smadmin.SOE2K8TDGOLD\Downloads\example.exe
+    - name: installing dotnet4.5
+      raw: 'C:\Users\smadmin.SOE2K8TDGOLD\Downloads\example.exe /Quiet /NoRestart /Full'
+    - name: download windows pkg mangr for powershell version 4
+      win_get_url:
+        url: https://download.microsoft.com/download/3/D/6/3D61D262-8549-4769-A660-230B67E15B25/Windows6.1-KB2819745-x64-MultiPkg.msu
+        dest: C:\Users\smadmin.SOE2K8TDGOLD\Downloads\winpkg.msu
+    - name: extracting and installing powershell
+      raw: wusa C:\Users\smadmin.SOE2K8TDGOLD\Downloads\winpkg.msu /extract:C:\Users\smadmin.SOE2K8TDGOLD\Downloads\winpkgs; pkgmgr.exe /n:C:\Users\smadmin.SOE2K8TDGOLD\Downloads\winpkgs\Windows6.1-2819745-x64.xml /quiet /norestart
