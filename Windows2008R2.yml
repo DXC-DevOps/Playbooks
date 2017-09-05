@@ -13,3 +13,5 @@
         dest: C:\Users\smadmin.SOE2K8TDGOLD\Downloads\winpkg.msu
     - name: extracting and installing powershell
       raw: wusa C:\Users\smadmin.SOE2K8TDGOLD\Downloads\winpkg.msu /extract:C:\Users\smadmin.SOE2K8TDGOLD\Downloads\winpkgs; pkgmgr.exe /n:C:\Users\smadmin.SOE2K8TDGOLD\Downloads\winpkgs\Windows6.1-2819745-x64.xml /quiet /norestart
+- include: RestartMachine.yml
+- include: Windows2012R2.yml
