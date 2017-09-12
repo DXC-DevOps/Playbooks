@@ -41,7 +41,7 @@
             log_stream_name = {instance_id}
             datetime_format = %b %d %H:%M:%S" ' >> /tmp/Config.txt
          chmod 777 /tmp/Config.txt
-		 curl -s https://s3.amazonaws.com//aws-cloudwatch/downloads/latest/awslogs-agent-setup.py -O
+         curl -s https://s3.amazonaws.com//aws-cloudwatch/downloads/latest/awslogs-agent-setup.py -O
          chmod +x awslogs-agent-setup.py
          REGIONNAME=`curl -fs http://169.254.169.254/latest/meta-data/placement/availability-zone | sed -e 's/\\([1-9]\\).$/\\1/g'`
          ./awslogs-agent-setup.py -n --region $REGIONNAME -c /tmp/Config.txt
@@ -66,7 +66,7 @@
          dimensions: { "InstanceId": "{{ec2_id}}"}
          alarm_actions: ["arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM"]
       ignore_errors: yes
-	- name: alarm for Status check Failed
+    - name: alarm for Status check Failed
       ec2_metric_alarm:
          state: present
          region: us-west-2
