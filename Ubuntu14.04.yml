@@ -1,0 +1,159 @@
+- name: AWS Linux MSP
+  hosts: tag_AnsibleCLI_ubuntu
+  become: True
+  #become_method: sudo su
+  #become_user: root
+  gather_facts: false
+  tasks:
+    - name: download python set-up file
+      get_url:
+          url: https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+          dest: /tmp/
+      ignore_errors: yes
+    - name: Install python boto and awscli
+      shell: |
+         python /tmp/get-pip.py -q
+         apt-get install python-boto -q > /dev/null
+         sudo apt-get install awscli -y -q > /dev/null
+      ignore_errors: yes
+    - name: downloading ssm agent setup file
+      get_url:
+          url: https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/debian_amd64/amazon-ssm-agent.deb
+          dest: /tmp/
+      ignore_errors: yes
+    - name: Install ssm agent
+      shell: |
+         dpkg -i /tmp/amazon-ssm-agent.deb
+      ignore_errors: yes
+    - name: Enable Detailed Monitoring
+      shell: |
+         REGIONNAME=`curl -fs http://169.254.169.254/latest/meta-data/placement/availability-zone | sed -e 's/\\([1-9]\\).$/\\1/g'`
+         EC2_INSTANCE_ID=`curl -fs  http://169.254.169.254/latest/meta-data/instance-id`
+         aws ec2 monitor-instances --instance-ids $EC2_INSTANCE_ID --region $REGIONNAME
+      ignore_errors: yes
+    - name: Setup CloudWatch logs
+      shell: |
+         echo '[general]
+            state_file = /var/awslogs/state/agent-state
+            [/var/log/syslog]
+            file = /var/log/syslog
+            log_group_name = /var/log/syslog
+            log_stream_name = {instance_id}
+            datetime_format = %b %d %H:%M:%S" ' >> /tmp/Config.txt
+         chmod 777 /tmp/Config.txt
+		 curl -s https://s3.amazonaws.com//aws-cloudwatch/downloads/latest/awslogs-agent-setup.py -O
+         chmod +x awslogs-agent-setup.py
+         REGIONNAME=`curl -fs http://169.254.169.254/latest/meta-data/placement/availability-zone | sed -e 's/\\([1-9]\\).$/\\1/g'`
+         ./awslogs-agent-setup.py -n --region $REGIONNAME -c /tmp/Config.txt
+         service awslogs start
+      ignore_errors: yes
+    - name: Get instance ID
+      action: ec2_facts
+    - name: CPU Alarm
+      ec2_metric_alarm:
+         state: present
+         region: us-west-2
+         name: "cpu-util{{ec2_id}}"
+         metric: "CPUUtilization"
+         namespace: "AWS/EC2"
+         statistic: Average
+         comparison: ">="
+         threshold: 8.5
+         period: 300
+         evaluation_periods: 3
+         unit: "Percent"
+         description: "This will alarm when instance cpu usage is greater than 85% for 15 minutes "
+         dimensions: { "InstanceId": "{{ec2_id}}"}
+         alarm_actions: ["arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM"]
+      ignore_errors: yes
+	- name: alarm for Status check Failed
+      ec2_metric_alarm:
+         state: present
+         region: us-west-2
+         name: "status-failed{{ec2_id}}"
+         metric: "StatusCheckFailed"
+         namespace: "AWS/EC2"
+         statistic: Minimum
+         comparison: ">"
+         threshold: 0
+         period: 60
+         evaluation_periods: 3
+         unit: "Percent"
+         description: "This will alarm when instance status check fails"
+         dimensions: { "InstanceId": "{{ec2_id}}" }
+         alarm_actions: ["arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM"]
+      ignore_errors: yes
+    - name: StatusFailedSystem
+      ec2_metric_alarm:
+         state: present
+         region: us-west-2
+         name: "status-failed-system{{ec2_id}}"
+         metric: "StatusCheckFailed_System"
+         namespace: "AWS/EC2"
+         statistic: Minimum
+         comparison: ">"
+         threshold: 0
+         period: 60
+         evaluation_periods: 3
+         unit: "Percent"
+         description: "This will alarm when instance status check fails"
+         dimensions: { "InstanceId": "{{ec2_id}}" }
+         alarm_actions: ["arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM"] 
+      ignore_errors: yes   
+    - name: StatusFailedInstance
+      ec2_metric_alarm:
+         state: present
+         region: us-west-2
+         name: "status-failed-instance{{ec2_id}}"
+         metric: "StatusCheckFailed_Instance"
+         namespace: "AWS/EC2"
+         statistic: Minimum
+         comparison: ">"
+         threshold: 0
+         period: 60
+         evaluation_periods: 3
+         unit: "Percent"
+         description: "This will alarm when instance status check fails"
+         dimensions: { "InstanceId": "{{ec2_id}}" }
+         alarm_actions: ["arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM"]
+      ignore_errors: yes   
+    - name: MemoryUtilAlarm
+      ec2_metric_alarm:
+         state: present
+         region: us-west-2
+         name: "memory-util{{ec2_id}}"
+         metric: "MemoryUtilization"
+         namespace: "Windows/Default"
+         statistic: Minimum
+         comparison: ">"
+         threshold: 85
+         period: 300
+         evaluation_periods: 2
+         unit: "Percent"
+         description: "Alarm is triggered when the memory is full"
+         dimensions: { "InstanceId": "{{ec2_id}}" }
+         alarm_actions: ["arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM"]
+      ignore_errors: yes   
+    - name: DiskUtilAlarm
+      ec2_metric_alarm:
+         state: present
+         region: us-west-2
+         name: "disk-util{{ec2_id}}"
+         metric: "DiskSpaceUtilization"
+         namespace: "Windows/Default"
+         statistic: Minimum
+         comparison: ">"
+         threshold: 85
+         period: 300
+         evaluation_periods: 2
+         unit: "Percent"
+         description: "Alarm is triggered when the memory is full"
+         dimensions: { "InstanceId": "{{ec2_id}}" }
+         alarm_actions: ["arn:aws:sns:us-west-2:641434276274:Logging-rInstanceAlarmTopic-MINIPSHEPMCM"]
+      ignore_errors: yes   
+    - name: Tags for instances
+      shell: |
+         regionid=`curl -fs http://169.254.169.254/latest/meta-data/placement/availability-zone | sed -e 's/\\([1-9]\\).$/\\1/g'`
+         instanceid=`curl -fs  http://169.254.169.254/latest/meta-data/instance-id`
+         aws ec2 create-tags --resources $instanceid --region $regionid --tags 'Key=Backup, Value=True' 'Key=RetentionPeriod, Value=7' 'Key=Patch Group, Value=patchlinux'
+      ignore_errors: yes
